@@ -1,50 +1,92 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    https://shiny.posit.co/
-#
-
 library(shiny)
+library(igraph)
 
-# Define UI for application that draws a histogram
+# Function to parse the grammar and create a graph
+parse_grammar <- function(grammar) {
+  # Split input into lines
+  lines <- strsplit(grammar, "\n")[[1]]
+  
+  # Create an empty directed graph
+  g <- make_empty_graph(directed = TRUE)
+  
+  # Set to keep track of unique vertices
+  vertices <- character(0)
+  
+  # Add the final state vertex
+  final_state <- "Z"
+  g <- add_vertices(g, 1, name = final_state)
+  vertices <- c(vertices, final_state)
+  
+  # Loop over lines to add edges
+  for (line in lines) {
+    # Match the pattern "NonTerminal -> Terminal NonTerminal" or "NonTerminal -> Terminal"
+    matches <- regmatches(line, regexec("([A-Z])\\s*->\\s*([a-z])([A-Z]?)", line))[[1]]
+    if (length(matches) >= 3) {
+      from <- matches[2]
+      terminal <- matches[3]
+      to <- ifelse(nchar(matches[4]) > 0, matches[4], final_state)
+      
+      # Add vertices if they don't exist
+      if (!(from %in% vertices)) {
+        g <- add_vertices(g, 1, name = from)
+        vertices <- c(vertices, from)
+      }
+      if (!(to %in% vertices)) {
+        g <- add_vertices(g, 1, name = to)
+        vertices <- c(vertices, to)
+      }
+      
+      # Add edges to the graph
+      g <- add_edges(g, c(from, to), label = terminal)
+    }
+  }
+  
+  return(g)
+}
+
+# Define UI for application
 ui <- fluidPage(
-
-    # Application title
-    titlePanel("Old Faithful Geyser Data"),
-
-    # Sidebar with a slider input for number of bins 
-    sidebarLayout(
-        sidebarPanel(
-            sliderInput("bins",
-                        "Number of bins:",
-                        min = 1,
-                        max = 50,
-                        value = 30)
-        ),
-
-        # Show a plot of the generated distribution
-        mainPanel(
-           plotOutput("distPlot")
-        )
+  
+  # Application title
+  titlePanel("Finite Automaton from Regular Grammar"),
+  
+  # Sidebar with a text area input for grammar
+  sidebarLayout(
+    sidebarPanel(
+      textAreaInput("grammar_input", 
+                    "Enter grammar rules:", 
+                    value = "S -> aA\nS -> bA\nA -> bB\nA -> c\nB -> c", 
+                    rows = 5, 
+                    cols = 40)
+    ),
+    
+    # Show the text output and plot output
+    mainPanel(
+      verbatimTextOutput("grammar_output"),
+      plotOutput("automatonPlot")
     )
+  )
 )
 
-# Define server logic required to draw a histogram
+# Define server logic
 server <- function(input, output) {
-
-    output$distPlot <- renderPlot({
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins + 1)
-
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white',
-             xlab = 'Waiting time to next eruption (in mins)',
-             main = 'Histogram of waiting times')
-    })
+  
+  output$grammar_output <- renderText({
+    # Render the text entered in the text area
+    input$grammar_input
+  })
+  
+  output$automatonPlot <- renderPlot({
+    # Parse the grammar and create the graph
+    grammar <- input$grammar_input
+    g <- parse_grammar(grammar)
+    
+    # Plot the graph
+    plot(g, vertex.label = V(g)$name, edge.label = E(g)$label, 
+         layout = layout_with_kk, 
+         vertex.color = "lightblue", vertex.size = 30, 
+         edge.arrow.size = 0.5)
+  })
 }
 
 # Run the application 
