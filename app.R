@@ -14,8 +14,12 @@ parse_grammar <- function(grammar) {
   
   # Add the final state vertex
   final_state <- "Z"
-  g <- add_vertices(g, 1, name = final_state)
+  g <- add_vertices(g, 1, color = "red", name = final_state)
   vertices <- c(vertices, final_state)
+  
+  initial_state <- "S"
+  g <- add_vertices(g, 1, color = "green", name = initial_state)
+  vertices <- c(vertices, initial_state)
   
   # Loop over lines to add edges
   for (line in lines) {
@@ -48,21 +52,19 @@ parse_grammar <- function(grammar) {
 ui <- fluidPage(
   
   # Application title
-  titlePanel("Finite Automaton from Regular Grammar"),
+  titlePanel("Regular Grammar to Automaton"),
   
   # Sidebar with a text area input for grammar
   sidebarLayout(
     sidebarPanel(
       textAreaInput("grammar_input", 
-                    "Enter grammar rules:", 
+                    "Write your grammar here:", 
                     value = "S -> aA\nS -> bA\nA -> bB\nA -> c\nB -> c", 
-                    rows = 5, 
-                    cols = 40)
+                    rows = 20)
     ),
     
     # Show the text output and plot output
     mainPanel(
-      verbatimTextOutput("grammar_output"),
       plotOutput("automatonPlot")
     )
   )
@@ -71,20 +73,14 @@ ui <- fluidPage(
 # Define server logic
 server <- function(input, output) {
   
-  output$grammar_output <- renderText({
-    # Render the text entered in the text area
-    input$grammar_input
-  })
-  
   output$automatonPlot <- renderPlot({
     # Parse the grammar and create the graph
     grammar <- input$grammar_input
     g <- parse_grammar(grammar)
     
     # Plot the graph
-    plot(g, vertex.label = V(g)$name, edge.label = E(g)$label, 
-         layout = layout_with_kk, 
-         vertex.color = "lightblue", vertex.size = 30, 
+    plot(g, vertex.label = V(g)$name, edge.label = E(g)$label,
+         vertex.size = 30, 
          edge.arrow.size = 0.5)
   })
 }
